@@ -10,7 +10,7 @@
   <a href="LICENSE"><img src="https://img.shields.io/github/license/marinuz/Itho-Daalderop-GES-HA.svg" alt="License"></a>
 </p>
 
-Professionele Home Assistant integratie voor Itho Daalderop warmtepompboilers met Cloud Connect functionaliteit.
+Professionele Home Assistant integratie voor Itho Daalderop boiler met Cloud Connect functionaliteit.
 
 ## ✨ Features
 
