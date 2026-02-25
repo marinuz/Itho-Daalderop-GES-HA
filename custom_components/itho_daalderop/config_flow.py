@@ -272,7 +272,7 @@ class IthoConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         """
         if not self.access_token or not self.serial_number:
             _LOGGER.error("Missing access_token or serial_number")
-            return False, "missing_data"
+            return False, "invalid_token"
         
         try:
             api_client = IthoApiClient(
@@ -280,13 +280,17 @@ class IthoConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             )
             
             # Try to get device status
-            _LOGGER.debug("Testing API access with serial: %s", self.serial_number)
-            await api_client.async_get_device_status()
-            _LOGGER.info("Token validation successful!")
+            _LOGGER.info("Testing API access with serial: %s", self.serial_number)
+            _LOGGER.debug("Token length: %d characters", len(self.access_token))
+            
+            result = await api_client.async_get_device_status()
+            _LOGGER.info("Token validation successful! Device status retrieved.")
+            _LOGGER.debug("Device status keys: %s", list(result.keys()) if result else "None")
             return True, None
             
         except Exception as err:
             _LOGGER.error("Token validation failed: %s (type: %s)", err, type(err).__name__)
+            _LOGGER.error("Full error details: %s", repr(err))
             
             # Check error type for better user feedback
             error_str = str(err).lower()
@@ -296,9 +300,9 @@ class IthoConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             elif "404" in error_str or "not found" in error_str:
                 _LOGGER.error("Serial number not found in system")
                 return False, "serial_not_found"
-            elif "timeout" in error_str:
+            elif "timeout" in error_str or "timed out" in error_str:
                 _LOGGER.error("API timeout")
                 return False, "api_timeout"
             else:
-                _LOGGER.error("Unknown API error")
+                _LOGGER.error("Unknown API error - check if token is valid")
                 return False, "invalid_token"
