@@ -23,7 +23,7 @@ from .const import (
 
 _LOGGER = logging.getLogger(__name__)
 
-PLATFORMS: list[Platform] = [Platform.SENSOR, Platform.SWITCH, Platform.NUMBER, Platform.WATER_HEATER]
+PLATFORMS: list[Platform] = [Platform.SENSOR, Platform.SWITCH, Platform.NUMBER, Platform.SELECT, Platform.WATER_HEATER]
 
 # Service schemas
 SERVICE_BOOST_BOILER = "boost_boiler"
@@ -110,17 +110,18 @@ class IthoDataUpdateCoordinator(DataUpdateCoordinator):
         try:
             self._update_count += 1
             
-            # Always fetch critical data (device status and mode)
+            # Always fetch critical real-time data (device status)
             device_status = await self.api_client.async_get_device_status()
-            device_mode = await self.api_client.async_get_device_mode()
             
-            # Only fetch PV settings every 5th update (once per 10 minutes)
-            # PV settings rarely change, so no need to poll frequently
-            if self._update_count % 5 == 1 or not hasattr(self.data, "get") or "pv_settings" not in self.data:
-                _LOGGER.debug("Fetching PV settings (update #%d)", self._update_count)
+            # Fetch settings only every 5th update (once per 10 minutes)
+            # Settings (mode, PV) rarely change - only when user changes them
+            if self._update_count % 5 == 1 or not self.data:
+                _LOGGER.debug("Fetching settings data (update #%d)", self._update_count)
+                device_mode = await self.api_client.async_get_device_mode()
                 pv_settings = await self.api_client.async_get_pv_settings()
             else:
-                # Reuse previous PV settings
+                # Reuse previous settings data
+                device_mode = self.data.get("device_mode", {}) if self.data else {}
                 pv_settings = self.data.get("pv_settings", {}) if self.data else {}
             
             # Note: GetEnergyConsumption requires startDate, endDate, interval parameters

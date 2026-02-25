@@ -34,7 +34,7 @@ async def async_setup_entry(
     sensors: list[SensorEntity] = [
         # Device Status Sensors
         IthoBoilerContentSensor(coordinator, serial_number),
-        IthoDeviceModeSensor(coordinator, serial_number),
+        # Note: Device Mode is now a SELECT entity for better UX
         IthoDeviceStateSensor(coordinator, serial_number),
         IthoDevicePowerSensor(coordinator, serial_number),
         IthoDeviceTemperatureSensor(coordinator, serial_number),
