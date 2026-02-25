@@ -1,0 +1,14 @@
+boost_boiler:
+  name: Boost Boiler
+  description: Activeer boost mode voor snelle opwarming van de boiler
+  target:
+    device:
+      integration: itho_daalderop
+  fields:
+    activate:
+      name: Activeren
+      description: True om boost te activeren, False om te deactiveren
+      required: false
+      default: true
+      selector:
+        boolean:

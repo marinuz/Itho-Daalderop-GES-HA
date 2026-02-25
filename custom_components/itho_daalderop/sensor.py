@@ -43,12 +43,15 @@ async def async_setup_entry(
         
         # PV Sensors
         IthoPvPowerNetSensor(coordinator, serial_number),
+        IthoPvPowerConsumptionSensor(coordinator, serial_number),
+        IthoPvPowerProductionSensor(coordinator, serial_number),
         IthoPvEnabledSensor(coordinator, serial_number),
         IthoPvStartLimitSensor(coordinator, serial_number),
         IthoPvStopLimitSensor(coordinator, serial_number),
         
-        # Energy Sensor
+        # Energy Sensors
         IthoEnergyConsumptionSensor(coordinator, serial_number),
+        IthoEnergySavingSensor(coordinator, serial_number),
     ]
 
     async_add_entities(sensors)
@@ -296,4 +299,64 @@ class IthoEnergyConsumptionSensor(IthoSensorBase):
         """Return the state of the sensor."""
         if self.coordinator.data and "energy" in self.coordinator.data:
             return self.coordinator.data["energy"].get("energyConsumption")
+        return None
+
+
+class IthoEnergySavingSensor(IthoSensorBase):
+    """Sensor for energy saving."""
+
+    def __init__(self, coordinator: IthoDataUpdateCoordinator, serial_number: str) -> None:
+        """Initialize the sensor."""
+        super().__init__(coordinator, serial_number, "energy_saving")
+        self._attr_name = "Energy Saving"
+        self._attr_native_unit_of_measurement = UnitOfEnergy.KILO_WATT_HOUR
+        self._attr_device_class = SensorDeviceClass.ENERGY
+        self._attr_state_class = SensorStateClass.TOTAL
+        self._attr_icon = "mdi:leaf"
+
+    @property
+    def native_value(self) -> float | None:
+        """Return the state of the sensor."""
+        if self.coordinator.data and "device_status" in self.coordinator.data:
+            return self.coordinator.data["device_status"].get("energySaving")
+        return None
+
+
+class IthoPvPowerConsumptionSensor(IthoSensorBase):
+    """Sensor for PV power consumption."""
+
+    def __init__(self, coordinator: IthoDataUpdateCoordinator, serial_number: str) -> None:
+        """Initialize the sensor."""
+        super().__init__(coordinator, serial_number, "pv_power_consumption")
+        self._attr_name = "PV Power Consumption"
+        self._attr_native_unit_of_measurement = UnitOfPower.KILO_WATT
+        self._attr_device_class = SensorDeviceClass.POWER
+        self._attr_state_class = SensorStateClass.MEASUREMENT
+        self._attr_icon = "mdi:transmission-tower-import"
+
+    @property
+    def native_value(self) -> float | None:
+        """Return the state of the sensor."""
+        if self.coordinator.data and "device_status" in self.coordinator.data:
+            return self.coordinator.data["device_status"].get("pvPowerConsumption")
+        return None
+
+
+class IthoPvPowerProductionSensor(IthoSensorBase):
+    """Sensor for PV power production."""
+
+    def __init__(self, coordinator: IthoDataUpdateCoordinator, serial_number: str) -> None:
+        """Initialize the sensor."""
+        super().__init__(coordinator, serial_number, "pv_power_production")
+        self._attr_name = "PV Power Production"
+        self._attr_native_unit_of_measurement = UnitOfPower.KILO_WATT
+        self._attr_device_class = SensorDeviceClass.POWER
+        self._attr_state_class = SensorStateClass.MEASUREMENT
+        self._attr_icon = "mdi:solar-power-variant"
+
+    @property
+    def native_value(self) -> float | None:
+        """Return the state of the sensor."""
+        if self.coordinator.data and "device_status" in self.coordinator.data:
+            return self.coordinator.data["device_status"].get("pvPowerProduction")
         return None

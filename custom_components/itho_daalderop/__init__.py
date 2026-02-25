@@ -3,10 +3,14 @@ from __future__ import annotations
 
 import logging
 from datetime import timedelta
+from typing import Any
+
+import voluptuous as vol
 
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import Platform
-from homeassistant.core import HomeAssistant
+from homeassistant.core import HomeAssistant, ServiceCall
+from homeassistant.helpers import config_validation as cv
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 
 from .api import IthoApiClient
@@ -19,7 +23,15 @@ from .const import (
 
 _LOGGER = logging.getLogger(__name__)
 
-PLATFORMS: list[Platform] = [Platform.SENSOR, Platform.WATER_HEATER]
+PLATFORMS: list[Platform] = [Platform.SENSOR, Platform.SWITCH, Platform.WATER_HEATER]
+
+# Service schemas
+SERVICE_BOOST_BOILER = "boost_boiler"
+BOOST_BOILER_SCHEMA = vol.Schema(
+    {
+        vol.Optional("activate", default=True): cv.boolean,
+    }
+)
 
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
@@ -43,6 +55,26 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     # Set up platforms
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
 
+    # Register services
+    async def handle_boost_boiler(call: ServiceCall) -> None:
+        """Handle boost boiler service call."""
+        activate = call.data.get("activate", True)
+        _LOGGER.info("Boost boiler service called: activate=%s", activate)
+        
+        # Get coordinator from first entry (assumes single device)
+        coordinators = list(hass.data[DOMAIN].values())
+        if coordinators:
+            coordinator = coordinators[0]
+            await coordinator.api_client.async_boost_boiler()
+            await coordinator.async_request_refresh()
+    
+    hass.services.async_register(
+        DOMAIN,
+        SERVICE_BOOST_BOILER,
+        handle_boost_boiler,
+        schema=BOOST_BOILER_SCHEMA,
+    )
+
     return True
 
 
@@ -50,6 +82,10 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Unload a config entry."""
     if unload_ok := await hass.config_entries.async_unload_platforms(entry, PLATFORMS):
         hass.data[DOMAIN].pop(entry.entry_id)
+        
+        # Remove services if this was the last entry
+        if not hass.data[DOMAIN]:
+            hass.services.async_remove(DOMAIN, SERVICE_BOOST_BOILER)
 
     return unload_ok
 
@@ -71,17 +107,20 @@ class IthoDataUpdateCoordinator(DataUpdateCoordinator):
     async def _async_update_data(self):
         """Fetch data from API."""
         try:
-            # Fetch all data in parallel
+            # Fetch core data in parallel
             device_status = await self.api_client.async_get_device_status()
             device_mode = await self.api_client.async_get_device_mode()
             pv_settings = await self.api_client.async_get_pv_settings()
-            energy = await self.api_client.async_get_energy_consumption()
+            
+            # Note: GetEnergyConsumption requires startDate, endDate, interval parameters
+            # This can be added as a service call when needed
+            # energy = await self.api_client.async_get_energy_consumption()
 
             return {
                 "device_status": device_status,
                 "device_mode": device_mode,
                 "pv_settings": pv_settings,
-                "energy": energy,
+                "energy": {},  # Empty for now, can be populated via service call
             }
         except Exception as err:
             raise UpdateFailed(f"Error communicating with API: {err}") from err
