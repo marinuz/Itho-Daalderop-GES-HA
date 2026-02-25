@@ -1,8 +1,14 @@
 # Itho Daalderop Home Assistant Integration
 
-[![hacs_badge](https://img.shields.io/badge/HACS-Custom-orange.svg)](https://github.com/custom-components/hacs)
-[![GitHub Release](https://img.shields.io/github/release/marinuz/Itho-Daalderop-GES-HA.svg)](https://github.com/marinuz/Itho-Daalderop-GES-HA/releases)
-[![License](https://img.shields.io/github/license/marinuz/Itho-Daalderop-GES-HA.svg)](LICENSE)
+<p align="center">
+  <img src="icon.svg" width="200" alt="Itho Daalderop Integration Icon"/>
+</p>
+
+<p align="center">
+  <a href="https://github.com/custom-components/hacs"><img src="https://img.shields.io/badge/HACS-Custom-orange.svg" alt="HACS"></a>
+  <a href="https://github.com/marinuz/Itho-Daalderop-GES-HA/releases"><img src="https://img.shields.io/github/release/marinuz/Itho-Daalderop-GES-HA.svg" alt="GitHub Release"></a>
+  <a href="LICENSE"><img src="https://img.shields.io/github/license/marinuz/Itho-Daalderop-GES-HA.svg" alt="License"></a>
+</p>
 
 Professionele Home Assistant integratie voor Itho Daalderop warmtepompboilers met Cloud Connect functionaliteit.
 

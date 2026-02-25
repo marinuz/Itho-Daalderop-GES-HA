@@ -1,0 +1,79 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <!-- Gradient definitions -->
+  <defs>
+    <linearGradient id="boilerGradient" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" style="stop-color:#E3F2FD;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#90CAF9;stop-opacity:1" />
+    </linearGradient>
+    <radialGradient id="sunGradient" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" style="stop-color:#FFD54F;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#FFA726;stop-opacity:1" />
+    </radialGradient>
+  </defs>
+  
+  <!-- Background circle with brand blue -->
+  <circle cx="256" cy="256" r="240" fill="#1565C0"/>
+  
+  <!-- Boiler body (main cylinder) -->
+  <rect x="170" y="140" width="172" height="240" rx="20" fill="url(#boilerGradient)" stroke="#0D47A1" stroke-width="4"/>
+  
+  <!-- Top cap (3D effect) -->
+  <ellipse cx="256" cy="140" rx="86" ry="24" fill="#BBDEFB" stroke="#0D47A1" stroke-width="3"/>
+  <ellipse cx="256" cy="136" rx="86" ry="20" fill="#E3F2FD"/>
+  
+  <!-- Bottom cap -->
+  <ellipse cx="256" cy="380" rx="86" ry="24" fill="#64B5F6" stroke="#0D47A1" stroke-width="3"/>
+  
+  <!-- Heat pump circulation symbol (rotating arrows in circle) -->
+  <g transform="translate(256, 260)">
+    <!-- Circle background -->
+    <circle r="50" fill="#FFFFFF" opacity="0.3"/>
+    <circle r="48" fill="none" stroke="#FF6F00" stroke-width="10" stroke-dasharray="70 20"/>
+    
+    <!-- Rotation arrows -->
+    <path d="M 0,-48 L 15,-35 L -5,-40 Z" fill="#FF6F00"/>
+    <path d="M 48,0 L 35,15 L 40,-5 Z" fill="#FF6F00"/>
+    <path d="M 0,48 L -15,35 L 5,40 Z" fill="#FF6F00"/>
+    <path d="M -48,0 L -35,-15 L -40,5 Z" fill="#FF6F00"/>
+  </g>
+  
+  <!-- PV/Solar symbol (sun with smart rays) -->
+  <g transform="translate(380, 150)">
+    <!-- Sun circle with gradient -->
+    <circle r="36" fill="url(#sunGradient)"/>
+    <circle r="28" fill="#FFF59D" opacity="0.5"/>
+    
+    <!-- Sun rays (8 directions) -->
+    <g stroke="#FFB300" stroke-width="8" stroke-linecap="round">
+      <line x1="0" y1="-50" x2="0" y2="-62"/>
+      <line x1="35" y1="-35" x2="44" y2="-44"/>
+      <line x1="50" y1="0" x2="62" y2="0"/>
+      <line x1="35" y1="35" x2="44" y2="44"/>
+      <line x1="0" y1="50" x2="0" y2="62"/>
+      <line x1="-35" y1="35" x2="-44" y2="44"/>
+      <line x1="-50" y1="0" x2="-62" y2="0"/>
+      <line x1="-35" y1="-35" x2="-44" y2="-44"/>
+    </g>
+  </g>
+  
+  <!-- Water level indicator with animation effect -->
+  <g opacity="0.85">
+    <rect x="185" y="310" width="142" height="55" rx="8" fill="#2196F3"/>
+    <path d="M 185,340 Q 205,330 225,340 T 265,340 T 305,340 T 327,340" 
+          stroke="#64B5F6" stroke-width="3" fill="none"/>
+  </g>
+  
+  <!-- Heat waves (temperature indication) -->
+  <g opacity="0.9" stroke="#FF5722" stroke-width="5" fill="none" stroke-linecap="round">
+    <path d="M 190,190 Q 210,175 230,190 T 270,190 T 310,190 T 322,190"/>
+    <path d="M 190,210 Q 210,195 230,210 T 270,210 T 310,210 T 322,210"/>
+    <path d="M 190,230 Q 210,215 230,230 T 270,230 T 310,230 T 322,230"/>
+  </g>
+  
+  <!-- Cloud Connect WiFi indicator -->
+  <g transform="translate(132, 150)" opacity="0.8">
+    <path d="M 0,8 Q -12,8 -12,-4 Q -12,-12 -4,-14 Q -2,-20 4,-20 Q 10,-20 12,-14 Q 20,-12 20,-4 Q 20,8 8,8 Z" 
+          fill="#FFFFFF" stroke="#0D47A1" stroke-width="2"/>
+    <circle cx="4" cy="0" r="2" fill="#1976D2"/>
+  </g>
+</svg>
