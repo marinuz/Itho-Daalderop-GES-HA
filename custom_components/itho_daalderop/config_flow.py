@@ -129,33 +129,56 @@ class IthoConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         if user_input is not None:
             callback_url = user_input.get("callback_url", "").strip()
             
-            # Extract token from URL
+            _LOGGER.debug("Received callback input (length: %d)", len(callback_url))
+            
+            # Extract token from URL or direct paste
             token = self._extract_token_from_url(callback_url)
             
             if not token:
+                _LOGGER.error("Failed to extract token from input")
                 errors["callback_url"] = "invalid_callback"
             else:
-                self.access_token = token
-                
-                # Decode token to get refresh token
+                # First validate it's a proper JWT
                 token_data = self._decode_token(token)
                 
-                if token_data and token_data.get("refresh_token"):
-                    self.refresh_token = token_data["refresh_token"]
-                
-                # Validate token with API call
-                if await self._async_validate_token():
-                    # Create config entry
-                    return self.async_create_entry(
-                        title=f"Itho Boiler {self.serial_number}",
-                        data={
-                            CONF_SERIAL_NUMBER: self.serial_number,
-                            CONF_ACCESS_TOKEN: self.access_token,
-                            CONF_REFRESH_TOKEN: self.refresh_token,
-                        },
-                    )
-                else:
+                if not token_data:
+                    _LOGGER.error("Token could not be decoded - invalid JWT format")
                     errors["callback_url"] = "invalid_token"
+                else:
+                    _LOGGER.info("Token decoded successfully")
+                    self.access_token = token
+                    
+                    # Extract refresh token from JWT payload
+                    if token_data.get("refresh_token"):
+                        self.refresh_token = token_data["refresh_token"]
+                        _LOGGER.debug("Refresh token found in JWT")
+                    else:
+                        _LOGGER.warning("No refresh token found in JWT")
+                    
+                    # Log token expiry
+                    expires_at = token_data.get("expires_at")
+                    if expires_at:
+                        _LOGGER.info("Token expires at: %s", expires_at)
+                    
+                    # Validate token with actual API call
+                    _LOGGER.debug("Validating token with API call...")
+                    success, error_key = await self._async_validate_token()
+                    
+                    if success:
+                        _LOGGER.info("Token validation successful! Creating config entry")
+                        # Create config entry
+                        return self.async_create_entry(
+                            title=f"Itho Boiler {self.serial_number}",
+                            data={
+                                CONF_SERIAL_NUMBER: self.serial_number,
+                                CONF_ACCESS_TOKEN: self.access_token,
+                                CONF_REFRESH_TOKEN: self.refresh_token,
+                            },
+                        )
+                    else:
+                        # Use specific error message from validation
+                        _LOGGER.error("Token validation failed: %s", error_key)
+                        errors["callback_url"] = error_key or "invalid_token"
 
         # Show form with browser link
         return self.async_show_form(
@@ -167,31 +190,52 @@ class IthoConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             ),
             errors=errors,
             description_placeholders={
-                "login_url": self.azure_url,
+                "login_url": self.azure_url or "https://itho-tussenlaag.bettywebblocks.com/sso/initiate",
                 "instructions": (
                     "1. Klik op de link hieronder om in te loggen\n"
                     "2. Log in met je Itho Daalderop account\n"
-                    "3. Na inloggen krijg je een foutmelding\n"
-                    "4. Open de browser console (F12)\n"
-                    "5. Kopieer de URL die begint met: climateconnect://login?token=...\n"
-                    "6. Plak de URL hieronder"
+                    "3. Na inloggen krijg je een foutmelding - dit is normaal!\n"
+                    "4. Kopieer de VOLLEDIGE URL uit je browser adresbalk\n"
+                    "5. De URL ziet er zo uit:\n"
+                    "   climateconnect://login?token=eyJ...\n"
+                    "6. Plak de volledige URL hieronder\n\n"
+                    "TIP: Je kunt ook alleen de token plakken (begint met eyJ...)"
                 ),
             },
         )
 
     def _extract_token_from_url(self, url: str) -> str | None:
-        """Extract JWT token from callback URL."""
-        # Pattern: climateconnect://login?token=XXXXX
-        pattern = r"climateconnect://login\?token=([A-Za-z0-9_\-\.]+)"
+        """Extract JWT token from callback URL or direct token input.
+        
+        Supports:
+        - Full callback URL: climateconnect://login?token=xxx
+        - Direct token paste: eyJ...
+        - URL with extra whitespace
+        """
+        # Clean input
+        url = url.strip()
+        
+        # Try to extract from full callback URL
+        # Pattern matches: climateconnect://login?token=XXXXX or climateconnect://login/?token=XXXXX
+        pattern = r"climateconnect://login/?[?]token=([A-Za-z0-9_\-\.]+)"
         match = re.search(pattern, url)
         
         if match:
-            return match.group(1)
+            token = match.group(1)
+            _LOGGER.debug("Token extracted from callback URL (length: %d)", len(token))
+            return token
         
-        # Also try if only token is pasted
-        if url.startswith("eyJ"):  # JWT tokens usually start with eyJ
-            return url
+        # Check if it's a direct JWT token paste (JWTs start with eyJ)
+        if url.startswith("eyJ"):
+            # Basic JWT validation - should have 3 parts separated by dots
+            parts = url.split(".")
+            if len(parts) == 3:
+                _LOGGER.debug("Direct JWT token detected (length: %d)", len(url))
+                return url
+            else:
+                _LOGGER.warning("Invalid JWT format - expected 3 parts, got %d", len(parts))
         
+        _LOGGER.error("Could not extract token from input: %s", url[:50])
         return None
 
     def _decode_token(self, token: str) -> dict[str, Any] | None:
@@ -220,10 +264,15 @@ class IthoConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             _LOGGER.error("Error decoding token: %s", err)
             return None
 
-    async def _async_validate_token(self) -> bool:
-        """Validate token by making a test API call."""
+    async def _async_validate_token(self) -> tuple[bool, str | None]:
+        """Validate token by making a test API call.
+        
+        Returns:
+            (success: bool, error_key: str | None)
+        """
         if not self.access_token or not self.serial_number:
-            return False
+            _LOGGER.error("Missing access_token or serial_number")
+            return False, "missing_data"
         
         try:
             api_client = IthoApiClient(
@@ -231,9 +280,25 @@ class IthoConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             )
             
             # Try to get device status
+            _LOGGER.debug("Testing API access with serial: %s", self.serial_number)
             await api_client.async_get_device_status()
-            return True
+            _LOGGER.info("Token validation successful!")
+            return True, None
             
         except Exception as err:
-            _LOGGER.error("Token validation failed: %s", err)
-            return False
+            _LOGGER.error("Token validation failed: %s (type: %s)", err, type(err).__name__)
+            
+            # Check error type for better user feedback
+            error_str = str(err).lower()
+            if "401" in error_str or "unauthorized" in error_str:
+                _LOGGER.error("Unauthorized - Serial number may not be linked to this account")
+                return False, "serial_not_linked"
+            elif "404" in error_str or "not found" in error_str:
+                _LOGGER.error("Serial number not found in system")
+                return False, "serial_not_found"
+            elif "timeout" in error_str:
+                _LOGGER.error("API timeout")
+                return False, "api_timeout"
+            else:
+                _LOGGER.error("Unknown API error")
+                return False, "invalid_token"

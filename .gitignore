@@ -16,6 +16,11 @@ tests/config.py
 tests/token.txt
 tests/__pycache__/
 
+# Temporary test files
+test_*.py
+analyze_*.py
+diagnose_*.py
+
 # Environment & logs
 .env
 *.log

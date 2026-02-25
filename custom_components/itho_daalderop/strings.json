@@ -10,16 +10,19 @@
       },
       "auth_callback": {
         "title": "Inloggen bij Itho Daalderop",
-        "description": "### Stappen om in te loggen:\n\n1. Klik op de onderstaande link om de login pagina te openen\n2. Log in met je Itho Daalderop account (email + wachtwoord)\n3. Na het inloggen krijg je een **foutmelding** - dit is normaal!\n4. Open de browser console (druk op **F12**)\n5. Kopieer de URL die begint met: `climateconnect://login?token=...`\n6. Plak de URL hieronder\n\n### Login URL:\n[Klik hier om in te loggen]({login_url})\n\n",
+        "description": "### Stappen om in te loggen:\n\n1. Klik op de onderstaande link om de login pagina te openen\n2. Log in met je Itho Daalderop account (email + wachtwoord)\n3. Na het inloggen krijg je een **foutmelding** - dit is normaal!\n4. Kopieer de **VOLLEDIGE URL** uit je browser adresbalk\n5. De URL ziet er zo uit: `climateconnect://login?token=eyJ...`\n6. Plak de volledige URL hieronder\n\n**TIP:** Je kunt ook alleen de token plakken (begint met `eyJ...`)\n\n### Login URL:\n[Klik hier om in te loggen]({login_url})\n\n",
         "data": {
-          "callback_url": "Callback URL (climateconnect://login?token=...)"
+          "callback_url": "Callback URL of token"
         }
       }
     },
     "error": {
       "invalid_serial": "Ongeldig serienummer",
       "invalid_callback": "Ongeldige callback URL. Zorg dat de URL begint met: climateconnect://login?token=",
-      "invalid_token": "Token is ongeldig of verlopen",
+      "invalid_token": "Token kon niet worden gevalideerd. Probeer opnieuw in te loggen",
+      "serial_not_linked": "Dit serienummer is niet gekoppeld aan jouw account. Voeg het apparaat eerst toe in de Itho Daalderop app",
+      "serial_not_found": "Serienummer niet gevonden in het systeem. Controleer of het serienummer correct is",
+      "api_timeout": "API reageert niet. Probeer het later opnieuw",
       "cannot_connect": "Kan geen verbinding maken met de server"
     },
     "abort": {
