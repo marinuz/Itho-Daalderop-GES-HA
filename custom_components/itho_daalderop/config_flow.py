@@ -129,13 +129,18 @@ class IthoConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         if user_input is not None:
             token_input = user_input.get("token", "").strip()
             
-            _LOGGER.debug("Received token input (length: %d)", len(token_input))
+            _LOGGER.info("=== TOKEN INPUT DEBUG ===")
+            _LOGGER.info("Token input length: %d", len(token_input))
+            _LOGGER.info("Token starts with: %s", token_input[:30] if len(token_input) > 30 else token_input)
+            _LOGGER.info("Token ends with: %s", token_input[-30:] if len(token_input) > 30 else token_input)
+            _LOGGER.info("Token parts count: %d", len(token_input.split(".")))
             
             # Extract token from URL or use direct token
             token = self._extract_token_from_url(token_input)
             
             if not token:
                 _LOGGER.error("Failed to extract token from input")
+                _LOGGER.error("Input was: %s...", token_input[:100])
                 errors["token"] = "invalid_token"
             else:
                 # First validate it's a proper JWT
@@ -282,16 +287,24 @@ class IthoConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             _LOGGER.error("Full error details: %s", repr(err))
             
             # Check error type for better user feedback
-            error_str = str(err).lower()
-            if "401" in error_str or "unauthorized" in error_str:
-                _LOGGER.error("Unauthorized - Serial number may not be linked to this account")
-                return False, "serial_not_linked"
-            elif "404" in error_str or "not found" in error_str:
-                _LOGGER.error("Serial number not found in system")
-                return False, "serial_not_found"
-            elif "timeout" in error_str or "timed out" in error_str:
-                _LOGGER.error("API timeout")
+            # First check exception type (more reliable than string matching)
+            import asyncio
+            from aiohttp import ClientError, ClientTimeout
+            
+            if isinstance(err, (asyncio.TimeoutError, TimeoutError, ClientTimeout)):
+                _LOGGER.error("API timeout - server did not respond in time")
                 return False, "api_timeout"
+            elif isinstance(err, ClientError):
+                error_str = str(err).lower()
+                if "401" in error_str or "unauthorized" in error_str:
+                    _LOGGER.error("Unauthorized - Serial number may not be linked to this account")
+                    return False, "serial_not_linked"
+                elif "404" in error_str or "not found" in error_str:
+                    _LOGGER.error("Serial number not found in system")
+                    return False, "serial_not_found"
+                else:
+                    _LOGGER.error("HTTP error - check connection")
+                    return False, "cannot_connect"
             else:
-                _LOGGER.error("Unknown API error - check if token is valid")
+                _LOGGER.error("Unknown API error - token may be invalid or expired")
                 return False, "invalid_token"

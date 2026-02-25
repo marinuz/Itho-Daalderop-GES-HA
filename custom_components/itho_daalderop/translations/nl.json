@@ -9,10 +9,10 @@
         }
       },
       "auth_callback": {
-        "title": "Inloggen bij Itho Daalderop",
-        "description": "### Stappen:\n\n1. [Klik hier om in te loggen]({login_url})\n2. Log in met je Itho Daalderop account (email + wachtwoord)\n3. Na het inloggen krijg je een foutmelding - **dit is normaal!**\n4. Kopieer de **URL uit je browser adresbalk**\n5. Zoek het stuk dat begint met `eyJ` (bijvoorbeeld: `eyJ0eXAiOiJKV1QiLCJhbG...`)\n6. Kopieer **alles vanaf eyJ tot het einde** en plak hieronder\n\n**Let op:** De token begint altijd met `eyJ` en is een lange string\n\n",
+        "title": "Token invoeren",
+        "description": "[Klik hier om in te loggen]({login_url})\n\nNa inloggen zie je een foutpagina. Kopieer dan uit je browser adresbalk het stuk vanaf **eyJ** tot het einde.\n\n",
         "data": {
-          "token": "Token (begint met eyJ)"
+          "token": "Token (vanaf eyJ)"
         }
       }
     },
