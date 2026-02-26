@@ -77,7 +77,7 @@ class IthoDeviceModeSelect(CoordinatorEntity, SelectEntity):
         success = await self.coordinator.api_client.async_set_device_mode(option)
         
         if success:
-            # Force immediate refresh to update UI
-            await self.coordinator.async_request_refresh()
+            # Only refresh settings, not full device status - reduces API calls
+            await self.coordinator.async_refresh_settings()
         else:
             _LOGGER.error("Failed to set device mode to %s", option)

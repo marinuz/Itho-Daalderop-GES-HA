@@ -10,7 +10,7 @@ from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
 from . import IthoDataUpdateCoordinator
-from .const import CONF_SERIAL_NUMBER, DOMAIN
+from .const import CONF_SERIAL_NUMBER, DOMAIN, MODE_HOLIDAY, MODE_SMART_CONTROL
 
 
 async def async_setup_entry(
@@ -24,6 +24,7 @@ async def async_setup_entry(
 
     switches = [
         IthoBoostSwitch(coordinator, serial_number),
+        IthoHolidayModeSwitch(coordinator, serial_number),
         IthoPvEnabledSwitch(coordinator, serial_number),
     ]
 
@@ -66,6 +67,43 @@ class IthoBoostSwitch(CoordinatorEntity, SwitchEntity):
         pass
 
 
+class IthoHolidayModeSwitch(CoordinatorEntity, SwitchEntity):
+    """Switch to enable/disable Holiday mode (vacation mode)."""
+
+    def __init__(
+        self, coordinator: IthoDataUpdateCoordinator, serial_number: str
+    ) -> None:
+        """Initialize the switch."""
+        super().__init__(coordinator)
+        self._serial_number = serial_number
+        self._attr_unique_id = f"{serial_number}_holiday_mode"
+        self._attr_name = "Vakantie Modus"
+        self._attr_icon = "mdi:palm-tree"
+        self._attr_device_info = {
+            "identifiers": {(DOMAIN, serial_number)},
+        }
+
+    @property
+    def is_on(self) -> bool | None:
+        """Return true if Holiday mode is active."""
+        if self.coordinator.data and "device_mode" in self.coordinator.data:
+            current_mode = self.coordinator.data["device_mode"].get("deviceMode")
+            return current_mode == MODE_HOLIDAY
+        return None
+
+    async def async_turn_on(self, **kwargs: Any) -> None:
+        """Enable Holiday mode."""
+        success = await self.coordinator.api_client.async_set_device_mode(MODE_HOLIDAY)
+        if success:
+            await self.coordinator.async_refresh_settings()
+
+    async def async_turn_off(self, **kwargs: Any) -> None:
+        """Disable Holiday mode (switch to SmartControl)."""
+        success = await self.coordinator.api_client.async_set_device_mode(MODE_SMART_CONTROL)
+        if success:
+            await self.coordinator.async_refresh_settings()
+
+
 class IthoPvEnabledSwitch(CoordinatorEntity, SwitchEntity):
     """Switch to enable/disable PV function."""
 
@@ -95,7 +133,7 @@ class IthoPvEnabledSwitch(CoordinatorEntity, SwitchEntity):
             pv_enabled=True
         )
         if success:
-            await self.coordinator.async_request_refresh()
+            await self.coordinator.async_refresh_settings()
 
     async def async_turn_off(self, **kwargs: Any) -> None:
         """Disable PV function."""
@@ -103,4 +141,4 @@ class IthoPvEnabledSwitch(CoordinatorEntity, SwitchEntity):
             pv_enabled=False
         )
         if success:
-            await self.coordinator.async_request_refresh()
+            await self.coordinator.async_refresh_settings()

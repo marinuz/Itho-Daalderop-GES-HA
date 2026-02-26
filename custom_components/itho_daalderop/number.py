@@ -27,6 +27,7 @@ async def async_setup_entry(
     serial_number = entry.data[CONF_SERIAL_NUMBER]
 
     numbers: list[NumberEntity] = [
+        IthoTemperatureSetpointNumber(coordinator, serial_number),
         IthoPvStartLimitNumber(coordinator, serial_number),
         IthoPvStopLimitNumber(coordinator, serial_number),
         IthoPvSetpointNumber(coordinator, serial_number),
@@ -62,6 +63,38 @@ class IthoNumberBase(CoordinatorEntity, NumberEntity):
         }
 
 
+class IthoTemperatureSetpointNumber(IthoNumberBase):
+    """Number entity for target temperature setpoint."""
+
+    def __init__(self, coordinator: IthoDataUpdateCoordinator, serial_number: str) -> None:
+        """Initialize the number entity."""
+        super().__init__(coordinator, serial_number, "temperature_setpoint")
+        self._attr_name = "Temperatuur Instelling"
+        self._attr_icon = "mdi:thermometer"
+        self._attr_native_unit_of_measurement = UnitOfTemperature.CELSIUS
+        self._attr_mode = NumberMode.SLIDER
+        self._attr_native_min_value = 10.0
+        self._attr_native_max_value = 75.0
+        self._attr_native_step = 1.0
+
+    @property
+    def native_value(self) -> float | None:
+        """Return the current value."""
+        if self.coordinator.data and "device_status" in self.coordinator.data:
+            return self.coordinator.data["device_status"].get("deviceTemperatureSetpoint")
+        return None
+
+    async def async_set_native_value(self, value: float) -> None:
+        """Update the value."""
+        _LOGGER.info("Setting temperature setpoint to %s°C", value)
+        success = await self.coordinator.api_client.async_set_temperature(value)
+        if success:
+            # Temperature is reflected in device_status, will update on next poll
+            _LOGGER.debug("Temperature setpoint updated successfully")
+        else:
+            _LOGGER.error("Failed to update temperature setpoint")
+
+
 class IthoPvStartLimitNumber(IthoNumberBase):
     """Number entity for PV start limit."""
 
@@ -90,8 +123,8 @@ class IthoPvStartLimitNumber(IthoNumberBase):
             pv_start_limit=value
         )
         if success:
-            # Force immediate refresh to update UI
-            await self.coordinator.async_request_refresh()
+            # Only refresh settings, not full device status - reduces API calls
+            await self.coordinator.async_refresh_settings()
         else:
             _LOGGER.error("Failed to update PV start limit")
 
@@ -124,7 +157,7 @@ class IthoPvStopLimitNumber(IthoNumberBase):
             pv_stop_limit=value
         )
         if success:
-            await self.coordinator.async_request_refresh()
+            await self.coordinator.async_refresh_settings()
         else:
             _LOGGER.error("Failed to update PV stop limit")
 
@@ -157,6 +190,6 @@ class IthoPvSetpointNumber(IthoNumberBase):
             pv_setpoint=value
         )
         if success:
-            await self.coordinator.async_request_refresh()
+            await self.coordinator.async_refresh_settings()
         else:
             _LOGGER.error("Failed to update PV target temperature")

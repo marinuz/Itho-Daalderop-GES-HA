@@ -103,7 +103,8 @@ class IthoWaterHeater(CoordinatorEntity, WaterHeaterEntity):
         temperature = kwargs.get("temperature")
         if temperature is not None:
             await self.coordinator.api_client.async_set_temperature(temperature)
-            await self.coordinator.async_request_refresh()
+            # Temperature change is reflected in device_status, will be updated on next poll
+            # No immediate refresh needed - reduces API calls
 
     async def async_set_operation_mode(self, operation_mode: str) -> None:
         """Set new operation mode."""
@@ -118,7 +119,8 @@ class IthoWaterHeater(CoordinatorEntity, WaterHeaterEntity):
         itho_mode = mode_mapping.get(operation_mode)
         if itho_mode:
             await self.coordinator.api_client.async_set_device_mode(itho_mode)
-            await self.coordinator.async_request_refresh()
+            # Only refresh settings data (mode + PV), not full device status
+            await self.coordinator.async_refresh_settings()
 
     @property
     def extra_state_attributes(self) -> dict[str, Any]:

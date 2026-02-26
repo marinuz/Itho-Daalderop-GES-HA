@@ -23,13 +23,21 @@ from .const import (
 
 _LOGGER = logging.getLogger(__name__)
 
-PLATFORMS: list[Platform] = [Platform.SENSOR, Platform.SWITCH, Platform.NUMBER, Platform.SELECT, Platform.WATER_HEATER]
+PLATFORMS: list[Platform] = [Platform.SENSOR, Platform.SWITCH, Platform.NUMBER, Platform.SELECT]
 
 # Service schemas
 SERVICE_BOOST_BOILER = "boost_boiler"
+SERVICE_SET_SCHEDULE = "set_schedule"
+
 BOOST_BOILER_SCHEMA = vol.Schema(
     {
         vol.Optional("activate", default=True): cv.boolean,
+    }
+)
+
+SET_SCHEDULE_SCHEMA = vol.Schema(
+    {
+        vol.Required("schedule"): dict,  # Schedule object with day:hour:temp mappings
     }
 )
 
@@ -68,11 +76,36 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             await coordinator.api_client.async_boost_boiler()
             await coordinator.async_request_refresh()
     
+    async def handle_set_schedule(call: ServiceCall) -> None:
+        """Handle set schedule service call."""
+        schedule = call.data.get("schedule")
+        _LOGGER.info("Set schedule service called with schedule: %s", schedule)
+        
+        # Get coordinator from first entry (assumes single device)
+        coordinators = list(hass.data[DOMAIN].values())
+        if coordinators:
+            coordinator = coordinators[0]
+            # Set to Schedule mode with the provided schedule
+            success = await coordinator.api_client.async_set_device_mode(
+                mode="Schedule",
+                schedule=schedule
+            )
+            if success:
+                await coordinator.async_refresh_settings()
+    
     hass.services.async_register(
+            hass.services.async_remove(DOMAIN, SERVICE_SET_SCHEDULE)
         DOMAIN,
         SERVICE_BOOST_BOILER,
         handle_boost_boiler,
         schema=BOOST_BOILER_SCHEMA,
+    )
+    
+    hass.services.async_register(
+        DOMAIN,
+        SERVICE_SET_SCHEDULE,
+        handle_set_schedule,
+        schema=SET_SCHEDULE_SCHEMA,
     )
 
     return True
@@ -97,6 +130,7 @@ class IthoDataUpdateCoordinator(DataUpdateCoordinator):
         """Initialize."""
         self.api_client = api_client
         self._update_count = 0  # Track updates for selective polling
+        self._force_full_refresh = False  # Force fetch all data on next update
 
         super().__init__(
             hass,
@@ -104,6 +138,27 @@ class IthoDataUpdateCoordinator(DataUpdateCoordinator):
             name=DOMAIN,
             update_interval=timedelta(seconds=UPDATE_INTERVAL),
         )
+
+    async def async_force_refresh(self) -> None:
+        """Force a full refresh of all data on next update."""
+        self._force_full_refresh = True
+        await self.async_request_refresh()
+
+    async def async_refresh_settings(self) -> None:
+        """Refresh only settings data (mode + PV) without waiting for next poll."""
+        try:
+            device_mode = await self.api_client.async_get_device_mode()
+            pv_settings = await self.api_client.async_get_pv_settings()
+            
+            # Update data without triggering full refresh
+            if self.data:
+                self.data["device_mode"] = device_mode
+                self.data["pv_settings"] = pv_settings
+                self.async_set_updated_data(self.data)
+            
+            _LOGGER.debug("Settings data refreshed after user change")
+        except Exception as err:
+            _LOGGER.warning("Failed to refresh settings: %s", err)
 
     async def _async_update_data(self):
         """Fetch data from API."""
@@ -113,12 +168,23 @@ class IthoDataUpdateCoordinator(DataUpdateCoordinator):
             # Always fetch critical real-time data (device status)
             device_status = await self.api_client.async_get_device_status()
             
-            # Fetch settings only every 5th update (once per 10 minutes)
+            # Fetch settings only every 5th update OR when forced
             # Settings (mode, PV) rarely change - only when user changes them
-            if self._update_count % 5 == 1 or not self.data:
-                _LOGGER.debug("Fetching settings data (update #%d)", self._update_count)
+            should_fetch_settings = (
+                self._update_count % 5 == 1 
+                or not self.data 
+                or self._force_full_refresh
+            )
+            
+            if should_fetch_settings:
+                _LOGGER.debug(
+                    "Fetching settings data (update #%d, forced=%s)", 
+                    self._update_count,
+                    self._force_full_refresh
+                )
                 device_mode = await self.api_client.async_get_device_mode()
                 pv_settings = await self.api_client.async_get_pv_settings()
+                self._force_full_refresh = False  # Reset flag
             else:
                 # Reuse previous settings data
                 device_mode = self.data.get("device_mode", {}) if self.data else {}
